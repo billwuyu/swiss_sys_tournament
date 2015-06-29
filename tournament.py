@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+# 
+# tournament.py -- implementation of a Swiss-system tournament
+#
+
+import psycopg2
+
+
+def connect():
+    """Connect to the PostgreSQL database.  Returns a database connection."""
+    return psycopg2.connect("dbname=tournament")
+
+
+def deleteMatches():
+    """Remove all the match records from the database."""
+    db = connect()
+    c = db.cursor()
+    c.execute("delete from matches")
+    db.commit()
+    c.close()
+    db.close()
+
+
+def deletePlayers():
+    """Remove all the player records from the database."""
+    db = connect()
+    c = db.cursor()
+    c.execute("delete from players")
+    db.commit()
+    c.close()
+    db.close()
+
+
+def countPlayers():
+    """Returns the number of players currently registered."""
+    db = connect()
+    c = db.cursor()
+    c.execute("select count(*) from players")
+    player_count = c.fetchall()
+    count = player_count[0][0]
+    db.close()
+    return count
+
+
+def registerPlayer(name):
+    """Adds a player to the tournament database.
+  
+    The database handles id number for the player.
+  
+    Args:
+      name: the player's full name (need not be unique).
+    """
+    db = connect()
+    c = db.cursor()
+    c.execute("insert into players (name) values (%s)", (name,))
+    db.commit()
+    c.close()
+    db.close()
+
+
+def playerStandings():
+    """ Returns a list of tuples, each of which contains (id, name, wins, matches), sorted by wins:
+        id: the player's unique id (assigned by the database)
+        name: the player's full name (as registered)
+        wins: the number of matches the player has won
+        matches: the number of matches the player has played
+    """
+    db = connect()
+    c = db.cursor()
+    c.execute("select * from standings")
+    standings = c.fetchall()
+    c.close()
+    db.close()
+    return standings
+
+
+def reportMatch(winner, loser):
+    """Records the outcome of a single match between two players.
+
+    Args:
+      winner:  the id number of the player who won
+      loser:  the id number of the player who lost
+    """
+    db = connect()
+    c = db.cursor()
+    c.execute("insert into matches values (%s, %s)", (winner, loser))
+    db.commit()
+    c.close()
+    db.close()
+ 
+ 
+def swissPairings():
+    """Returns a list of pairs of players for the next round of a match
+        in the following format:(id1, name1, id2, name2)
+        id1: the first player's unique id
+        name1: the first player's name
+        id2: the second player's unique id
+        name2: the second player's name
+    """
+    pairings = []
+    count = countPlayers()
+    standings = playerStandings()
+    for i in range(0, count, 2):
+        pair = (standings[i][0], standings[i][1], standings[i+1][0],
+                standings[i+1][1])
+        pairings.append(pair)
+
+    return pairings
+        
+
+
